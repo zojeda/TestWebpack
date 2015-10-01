@@ -1,0 +1,120 @@
+'use strict';
+
+var path = require('path');
+var conf = require('./gulp/conf');
+
+var _ = require('lodash');
+var wiredep = require('wiredep');
+var webpack = require('webpack');
+
+function listFiles() {
+  var wiredepOptions = _.extend({}, conf.wiredep, {
+    dependencies: true,
+    devDependencies: true
+  });
+
+  return wiredep(wiredepOptions).js
+    .concat([
+      path.join(conf.paths.tmp, '/serve/app/bundle.js'),
+      path.join(conf.paths.src, '/**/*.html'),
+      path.join(conf.paths.src, '/**/*.spec.js')
+    ]);
+}
+
+module.exports = function(config) {
+
+  var bundleSource = path.join(conf.paths.tmp, '/serve/app/bundle.js');
+  var configuration = {
+    files: ['test/index.js',
+    ],
+
+    singleRun: false,
+
+    browserDisconnectTimeout : 10000, // default 2000
+    browserDisconnectTolerance : 1,   // default 0
+    browserNoActivityTimeout : 60000, // default 10000
+
+    autoWatch: false,
+
+    frameworks: ['jasmine'],
+
+    ngHtml2JsPreprocessor: {
+      stripPrefix: 'src/',
+      moduleName: 'proteusGui'
+    },
+
+    browsers : [ 'ChromeBackground' ],
+
+    customLaunchers: {
+        ChromeBackground: {
+            base: 'Chrome',
+            flags: [
+              '--window-size=300,300',
+              '--window-position=-400,0'
+            ]
+        }
+    },
+
+    plugins : [
+      'karma-chrome-launcher',
+      'karma-jasmine',
+      'karma-junit-reporter',
+      'karma-ng-html2js-preprocessor',
+      'karma-webpack'
+    ],
+
+    preprocessors: {
+      'test/index.js': ['webpack']
+    },
+    webpack: {
+        module: {
+            preLoaders: [
+                // instrument only testing sources with Istanbul
+                {
+                    test: /\.js$/,
+                    include: path.resolve('src/'),
+                    loader: 'istanbul-instrumenter'
+                }
+            ]
+        },
+        devtool: 'inline-source-map',
+        resolve: {
+            root: [path.join(__dirname, "bower_components")]
+        },
+        plugins: [
+            new webpack.ResolverPlugin(
+                new webpack.ResolverPlugin.DirectoryDescriptionFilePlugin("bower.json", ["main"])
+            )
+        ]
+
+    },
+    coverageReporter: {
+          type : 'html',
+          dir : 'coverage/'
+
+    },
+    reporters: ['progress', 'junit', 'coverage'],
+
+    // the default configuration
+    junitReporter: {
+      outputFile: 'test-results.xml',
+      suite: ''
+    }
+  };
+
+  // This block is needed to execute Chrome on Travis
+  // If you ever plan to use Chrome and Travis, you can keep it
+  // If not, you can safely remove it
+  // https://github.com/karma-runner/karma/issues/1144#issuecomment-53633076
+  if(configuration.browsers[0] === 'Chrome' && process.env.TRAVIS) {
+    configuration.customLaunchers = {
+      'chrome-travis-ci': {
+        base: 'Chrome',
+        flags: ['--no-sandbox']
+      }
+    };
+    configuration.browsers = ['chrome-travis-ci'];
+  }
+
+  config.set(configuration);
+};

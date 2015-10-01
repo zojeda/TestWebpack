@@ -5,5 +5,4 @@ import routerConfig from './index.route';
 
 angular.module('app', ['ui.router'])
   .config(routerConfig)
-
   .controller('MainController', MainController);
